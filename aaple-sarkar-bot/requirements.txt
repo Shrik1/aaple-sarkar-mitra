@@ -3,3 +3,5 @@ uvicorn[standard]
 google-genai>=2.30.1
 python-multipart
 python-dotenv
+qrcode
+colorama
