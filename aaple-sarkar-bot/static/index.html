@@ -1215,6 +1215,7 @@
     let isHeroMode = true;
     let recognition = null;
     let isRecognizing = false;
+    let conversationHistory = [];
 
     document.addEventListener('DOMContentLoaded', () => {
       checkHealth();
@@ -1272,6 +1273,7 @@
     function startNewChat() {
       closeSidebar();
       previousInteractionId = null;
+      conversationHistory = [];
       isHeroMode = true;
 
       document.getElementById('chat-stream').style.display = 'none';
@@ -1335,6 +1337,7 @@
       }
 
       appendUserMessage(text);
+      conversationHistory.push({ role: 'user', content: text });
       showTyping();
       isProcessing = true;
 
@@ -1344,6 +1347,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: text,
+            history: conversationHistory.slice(-8),
             language: currentLang,
             previous_interaction_id: previousInteractionId
           })
@@ -1353,6 +1357,7 @@
 
         const data = await res.json();
         previousInteractionId = data.interaction_id;
+        conversationHistory.push({ role: 'assistant', content: data.reply });
 
         hideTyping();
         appendBotMessage(data.reply, data.schemes_found, data.suggestions);

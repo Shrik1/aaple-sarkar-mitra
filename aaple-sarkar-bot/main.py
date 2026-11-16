@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from google import genai
 from knowledge_base import search_knowledge_base, generate_smart_fallback, SCHEMES_DATA
 from general_knowledge import generate_general_answer, match_general_knowledge
+from conversational_reasoner import reason_on_user_question, detect_scheme_from_context
 
 load_dotenv()
 
@@ -121,6 +122,7 @@ GENERAL GUIDELINES (Both Modes)
 # ─── Pydantic Models ──────────────────────────────────────────────────────────
 class ChatMessage(BaseModel):
     message: str
+    history: Optional[list] = []
     language: Optional[str] = "auto"
     previous_interaction_id: Optional[str] = None
 
@@ -214,9 +216,13 @@ async def chat(request: ChatMessage):
     if not query:
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    # 1. RAG Search — check if this is a scheme-related query
+    # 1. RAG Search & Context Detection
     relevant_schemes = search_knowledge_base(query)
     is_scheme_query = len(relevant_schemes) > 0
+    inferred_scheme = detect_scheme_from_context(query, request.history or [], SCHEMES_DATA)
+    if not relevant_schemes and inferred_scheme:
+        relevant_schemes = [inferred_scheme]
+        is_scheme_query = True
 
     # 2. Try Gemini Generative AI (for BOTH scheme and general questions)
     client = get_client()
@@ -225,7 +231,7 @@ async def chat(request: ChatMessage):
             rag_context = ""
             if relevant_schemes:
                 rag_context = "\n\n=== VERIFIED STATE SCHEMES KNOWLEDGE BASE ===\n"
-                rag_context += "(The user's question matches the following verified government schemes. Use this data for accurate answers.)\n"
+                rag_context += "(Use this verified data for accurate scheme rules, amounts, eligibility, and documents.)\n"
                 for s in relevant_schemes:
                     rag_context += f"\nScheme: {s['title']} ({s['title_mr']})\n"
                     rag_context += f"Category: {s['category']}\n"
@@ -238,15 +244,25 @@ async def chat(request: ChatMessage):
                     rag_context += f"Apply Link: {s['apply_link']} | Helpline: {s['helpline']}\n"
                     rag_context += "---\n"
             else:
-                rag_context = "\n\n(No specific government scheme matched this query. This appears to be a general knowledge question. Answer it freely and helpfully like a world-class AI assistant.)\n"
+                rag_context = "\n\n(No specific government scheme matched this query. This appears to be an open custom question. Answer it freely and helpfully like ChatGPT or Claude.)\n"
+
+            # Multi-turn history context for conversational continuity
+            history_str = ""
+            if request.history:
+                history_str = "\n=== RECENT CONVERSATION CONTEXT ===\n"
+                for h in request.history[-6:]:
+                    speaker = "Citizen" if h.get("role") == "user" else "Sarkar Mitra"
+                    history_str += f"{speaker}: {h.get('content', '')}\n"
 
             prompt = (
                 f"{SYSTEM_INSTRUCTION}\n"
-                f"{rag_context}\n\n"
-                f"User Question: {query}\n"
+                f"{rag_context}\n"
+                f"{history_str}\n\n"
+                f"Current Citizen Question: {query}\n"
                 f"Preferred Language: {request.language}\n"
-                f"Respond helpfully. If this is a scheme question, follow MODE 1 guidelines with full bilingual structure. "
-                f"If this is a general question, follow MODE 2 guidelines and answer it thoroughly."
+                f"CRITICAL INSTRUCTION: Think by yourself and directly answer the citizen's specific personal or follow-up question. "
+                f"If the citizen asks a situational question (e.g., age, minor status, income limit, or missing documents), "
+                f"provide clear reasoning directly answering their question first, rather than dumping a generic scheme brochure."
             )
 
             reply_text = None
@@ -292,7 +308,26 @@ async def chat(request: ChatMessage):
         except Exception as e:
             logger.error(f"Fallback triggered due to Gemini error: {e}")
 
-    # 3. Dual-Engine Local Fallback (when Gemini API key is absent or offline)
+    # 3. Dual-Engine Intelligent Reasoning Fallback (Offline / Zero-Key Mode)
+    
+    # 3A. First, check if the query is a context-aware or specific situational question
+    reasoned_reply, matched_scheme = reason_on_user_question(
+        query,
+        request.history or [],
+        SCHEMES_DATA,
+        request.language or "auto"
+    )
+    if reasoned_reply:
+        schemes_to_return = [matched_scheme] if matched_scheme else relevant_schemes
+        return ChatResponse(
+            reply=reasoned_reply,
+            schemes_found=_clean_schemes(schemes_to_return),
+            interaction_id=None,
+            suggestions=_generate_suggestions(query, schemes_to_return),
+            mode="reasoning_engine"
+        )
+
+    # 3B. Standard scheme inquiry fallback (initial brochure view)
     if is_scheme_query:
         fallback_text, matched = generate_smart_fallback(query, request.language or "auto")
         return ChatResponse(
@@ -303,7 +338,7 @@ async def chat(request: ChatMessage):
             mode="knowledge_base"
         )
     else:
-        # General / custom question fallback
+        # 3C. General / custom academic / coding question fallback
         fallback_text, was_matched = generate_general_answer(query, request.language or "auto")
         return ChatResponse(
             reply=fallback_text,
