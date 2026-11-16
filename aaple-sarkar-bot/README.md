@@ -6,9 +6,12 @@ An AI-powered, bilingual citizen welfare assistant built for **Aaple Sarkar (Gov
 
 ## ✨ Key Capabilities
 
+- **Dual-Mode AI Architecture (ChatGPT / Claude + Civic Tech)**:
+  - 🤖 **General AI Mode**: Answers custom questions on any topic — Science, Computer Science, Python/Web coding, Mathematics, History, Job Interview preparation, Resume writing, and Essay drafting.
+  - 🏛️ **Maharashtra Scheme Specialist**: Grounded in official Maharashtra Government Resolutions (GRs) for 10+ major welfare programs with zero hallucinations.
 - **ChatGPT-Inspired Dark Minimalist UI**:
   - Sleek, modern charcoal design (`#0E0F12`, `#16181C`) with emerald green accents (`#10A37F`) and responsive mobile drawer.
-  - Sidebar scheme shortcuts with direct 1-click access to major welfare programs.
+  - Dual sidebar sections: **✦ Ask Anything (ChatGPT Mode)** and **🏛️ Maharashtra Welfare Schemes**.
 - **Bilingual Response Engine (Marathi + English)**:
   - Every scheme response delivers full, authentic **Marathi (मराठी)** details first, followed by a structured **English Translation & Summary** (Overview, Key Benefits, Eligibility Checklist, Required Documents, and Official Links).
 - **Speech & Voice Interface**:
@@ -82,6 +85,7 @@ The bot operates **100% reliably out of the box** using its local verified knowl
 aaple-sarkar-mitra/
 ├── main.py              # FastAPI application (Chat, Search, Speech, Schemes APIs)
 ├── knowledge_base.py    # Verified Maharashtra schemes dataset & bilingual RAG
+├── general_knowledge.py # Custom questions & general academic/coding knowledge engine
 ├── start.py             # Automatic port-freeing runner
 ├── tunnel.py            # Cloudflare HTTP/2 tunnel & QR code generator
 ├── serve.py             # Lightweight HTTP server fallback

@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from knowledge_base import search_knowledge_base, generate_smart_fallback, SCHEMES_DATA
+from general_knowledge import generate_general_answer, match_general_knowledge
 
 load_dotenv()
 
@@ -70,34 +71,51 @@ def get_client() -> Optional[genai.Client]:
             _client = None
     return _client
 
-SYSTEM_INSTRUCTION = """You are "Sarkar Mitra" (सरकार मित्र), the official AI assistant for Aaple Sarkar (आपले सरकार - Govt of Maharashtra).
-Your mission is to empower rural and urban citizens, farmers, women, and students across Maharashtra by providing accurate, clear, and direct answers about state and central welfare schemes.
+SYSTEM_INSTRUCTION = """You are "Sarkar Mitra" (सरकार मित्र), a powerful, friendly, and intelligent AI assistant.
 
-Guidelines:
-1. Dual-Language Requirement (Bilingual):
-   - ALWAYS provide the primary answer in the requested language (e.g. fluent, respectful Marathi).
-   - IMMEDIATELY following the Marathi/primary answer, ALWAYS include a dedicated, clear English section:
-     ---
-     🌐 **English Translation & Summary:**
-     • **Overview:** [Brief 1-2 sentence English summary]
-     • **Benefits:** [Exact financial benefits / subsidies]
-     • **Eligibility Criteria:** [Key eligibility bullet points]
-     • **Required Documents:** [Key documents checklist]
-     • **How to Apply:** [Step or official link]
-     • **Helpline:** [Official toll-free number]
-   - If the user asks directly in English, provide the full English answer, followed by a brief "मराठी सारांश (Marathi Summary)".
-2. Structure your answers:
-   - Clear sections with bold headers.
-   - Benefits (मिळणारा लाभ) with exact amounts/subsidies.
-   - Eligibility Checklist (पात्रता निकष).
-   - Required Documents (आवश्यक कागदपत्रे).
-   - How to apply & Official Link.
-   - Official 24x7 Helpline numbers.
-3. Strict Grounding:
-   - Use the provided verified Aaple Sarkar knowledge base context.
-   - Never fabricate scheme amounts, dates, or criteria.
-   - Emphasize that citizens do not need middlemen and can apply via Aaple Sarkar or visit Maha e-Seva Kendras.
-4. Emojis: Use tasteful icons (🏛️, ✅, 📋, 💰, 📞, 🌾)."""
+You have TWO modes of operation:
+
+═══════════════════════════════════════════════════════════════
+MODE 1 — GOVERNMENT SCHEMES & CITIZEN SERVICES (Primary Specialization)
+═══════════════════════════════════════════════════════════════
+When the user asks about Maharashtra state schemes, central government welfare programs, 
+Aaple Sarkar services, certificates, ration cards, subsidies, land records, pensions, 
+or any citizen service — you MUST respond with the highest accuracy:
+
+- Use the VERIFIED SCHEMES KNOWLEDGE BASE context provided below (when available).
+- Structure: Detailed breakdown with exact amounts, eligibility criteria, required documents, official links, and helpline numbers.
+- Never fabricate scheme amounts, dates, or criteria.
+- Emphasize that citizens do NOT need middlemen — they can apply via Aaple Sarkar or Maha e-Seva Kendras.
+- Bilingual Format (for scheme-related questions):
+    • Primary answer in the user's language (Marathi/Hindi/English).
+    • Followed by a divider (---) and a complete translation section:
+      🌐 **English Translation & Summary:** (if primary was Marathi/Hindi)
+      OR
+      🌐 **मराठी सारांश (Marathi Summary):** (if primary was English)
+
+═══════════════════════════════════════════════════════════════
+MODE 2 — GENERAL KNOWLEDGE & OPEN CONVERSATION (Like ChatGPT)
+═══════════════════════════════════════════════════════════════
+When the user asks a general question — about science, technology, math, history, 
+coding, health, education, career advice, daily life tips, creative writing, 
+explanations, analysis, or ANY topic unrelated to government schemes — you MUST 
+answer it helpfully and accurately, just like a world-class AI assistant.
+
+- Answer the question fully, clearly, and directly.
+- Use well-structured formatting with headers, bullet points, code blocks, etc.
+- Be conversational, warm, and intelligent.
+- You can discuss any safe, ethical topic.
+- For general questions, bilingual translation is OPTIONAL (only include it if the user seems to prefer bilingual output, or if they asked in Marathi/Hindi and an English summary would be genuinely helpful).
+
+═══════════════════════════════════════════════════════════════
+GENERAL GUIDELINES (Both Modes)
+═══════════════════════════════════════════════════════════════
+1. Language: Match the user's language. If they write in Marathi, reply in Marathi. If in English, reply in English. If mixed, use the dominant language.
+2. Emojis: Use tasteful icons sparingly (🏛️, ✅, 📋, 💰, 📞, 🌾, 💡, 🔬, 📖).
+3. Tone: Friendly, respectful, knowledgeable. Address the user warmly.
+4. Length: Be thorough for complex questions, concise for simple ones.
+5. If a general question has a natural connection to a Maharashtra scheme (e.g., "How do farmers get loans?" → mention Mahatma Phule Karj Mukti), weave in the relevant scheme information naturally.
+6. Never refuse a reasonable question. You are a helpful general-purpose AI that also happens to be an expert on Maharashtra government schemes."""
 
 
 # ─── Pydantic Models ──────────────────────────────────────────────────────────
@@ -196,16 +214,18 @@ async def chat(request: ChatMessage):
     if not query:
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    # 1. RAG Search
+    # 1. RAG Search — check if this is a scheme-related query
     relevant_schemes = search_knowledge_base(query)
+    is_scheme_query = len(relevant_schemes) > 0
 
-    # 2. Try Gemini Generative AI
+    # 2. Try Gemini Generative AI (for BOTH scheme and general questions)
     client = get_client()
     if client:
         try:
             rag_context = ""
             if relevant_schemes:
                 rag_context = "\n\n=== VERIFIED STATE SCHEMES KNOWLEDGE BASE ===\n"
+                rag_context += "(The user's question matches the following verified government schemes. Use this data for accurate answers.)\n"
                 for s in relevant_schemes:
                     rag_context += f"\nScheme: {s['title']} ({s['title_mr']})\n"
                     rag_context += f"Category: {s['category']}\n"
@@ -217,56 +237,81 @@ async def chat(request: ChatMessage):
                     rag_context += f"Documents: {'; '.join(s['documents'])}\n"
                     rag_context += f"Apply Link: {s['apply_link']} | Helpline: {s['helpline']}\n"
                     rag_context += "---\n"
+            else:
+                rag_context = "\n\n(No specific government scheme matched this query. This appears to be a general knowledge question. Answer it freely and helpfully like a world-class AI assistant.)\n"
 
             prompt = (
                 f"{SYSTEM_INSTRUCTION}\n"
                 f"{rag_context}\n\n"
                 f"User Question: {query}\n"
                 f"Preferred Language: {request.language}\n"
-                f"Please provide an accurate, clear, and direct response following the guidelines."
+                f"Respond helpfully. If this is a scheme question, follow MODE 1 guidelines with full bilingual structure. "
+                f"If this is a general question, follow MODE 2 guidelines and answer it thoroughly."
             )
 
-            call_params = {
-                "model": "gemini-3.8-flash",
-                "input": prompt
-            }
-            if request.previous_interaction_id:
-                call_params["previous_interaction_id"] = request.previous_interaction_id
+            reply_text = None
+            interaction_id = None
 
-            interaction = None
-            for attempt in range(2):
+            # Strategy A: standard client.models.generate_content
+            for model_name in ["gemini-2.5-flash", "gemini-2.0-flash"]:
                 try:
-                    interaction = client.interactions.create(**call_params)
-                    break
-                except Exception as ex:
-                    ex_str = str(ex)
-                    if "429" in ex_str or "RESOURCE_EXHAUSTED" in ex_str:
-                        logger.warning(f"Gemini 429 rate limit hit. Waiting 3s (attempt {attempt+1})")
-                        time.sleep(3)
-                    else:
-                        logger.warning(f"Gemini API error: {ex}")
+                    resp = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    if resp and resp.text:
+                        reply_text = resp.text
                         break
+                except Exception as m_err:
+                    logger.warning(f"models.generate_content with {model_name} failed: {m_err}")
 
-            if interaction and interaction.output_text:
+            # Strategy B: fallback to client.interactions.create
+            if not reply_text:
+                try:
+                    call_params = {
+                        "model": "gemini-flash-latest",
+                        "input": prompt
+                    }
+                    if request.previous_interaction_id:
+                        call_params["previous_interaction_id"] = request.previous_interaction_id
+                    interaction = client.interactions.create(**call_params)
+                    if interaction and interaction.output_text:
+                        reply_text = interaction.output_text
+                        interaction_id = interaction.id
+                except Exception as i_err:
+                    logger.warning(f"interactions.create failed: {i_err}")
+
+            if reply_text:
                 return ChatResponse(
-                    reply=interaction.output_text,
+                    reply=reply_text,
                     schemes_found=_clean_schemes(relevant_schemes),
-                    interaction_id=interaction.id,
+                    interaction_id=interaction_id,
                     suggestions=_generate_suggestions(query, relevant_schemes),
                     mode="gemini"
                 )
         except Exception as e:
             logger.error(f"Fallback triggered due to Gemini error: {e}")
 
-    # 3. Robust High-Fidelity Fallback
-    fallback_text, matched = generate_smart_fallback(query, request.language or "auto")
-    return ChatResponse(
-        reply=fallback_text,
-        schemes_found=_clean_schemes(relevant_schemes or matched),
-        interaction_id=None,
-        suggestions=_generate_suggestions(query, relevant_schemes or matched),
-        mode="knowledge_base"
-    )
+    # 3. Dual-Engine Local Fallback (when Gemini API key is absent or offline)
+    if is_scheme_query:
+        fallback_text, matched = generate_smart_fallback(query, request.language or "auto")
+        return ChatResponse(
+            reply=fallback_text,
+            schemes_found=_clean_schemes(relevant_schemes or matched),
+            interaction_id=None,
+            suggestions=_generate_suggestions(query, relevant_schemes or matched),
+            mode="knowledge_base"
+        )
+    else:
+        # General / custom question fallback
+        fallback_text, was_matched = generate_general_answer(query, request.language or "auto")
+        return ChatResponse(
+            reply=fallback_text,
+            schemes_found=[],
+            interaction_id=None,
+            suggestions=_generate_suggestions(query, []),
+            mode="general_ai"
+        )
 
 @app.post("/api/transcribe")
 async def transcribe_audio(request: AudioMessage):
@@ -364,12 +409,61 @@ def _generate_suggestions(query: str, schemes: list) -> list:
             "जात प्रमाणपत्र (Caste Certificate) नियम",
             "आपले सरकार पोर्टलवर नोंदणी कशी करावी?"
         ]
+    elif "quantum" in q:
+        return [
+            "What is quantum entanglement?",
+            "What is the difference between a bit and a qubit?",
+            "How does quantum superposition work?",
+            "Real-world uses of quantum computers"
+        ]
+    elif "python" in q or "code" in q or "programming" in q:
+        return [
+            "Python list comprehension examples",
+            "How to reverse a string in Python?",
+            "Explain Object-Oriented Programming (OOP)",
+            "How to connect Python with SQL?"
+        ]
+    elif "machine learning" in q or " ai " in q or "deep learning" in q or "data science" in q:
+        return [
+            "Difference between Supervised and Unsupervised Learning",
+            "What is Deep Learning vs Machine Learning?",
+            "How do neural networks work?",
+            "Best Python libraries for AI"
+        ]
+    elif "shivaji" in q or "महाराज" in q:
+        return [
+            "Chhatrapati Shivaji Maharaj forts history",
+            "Who was Jijamata?",
+            "Explain Ganimi Kava guerrilla tactics",
+            "Shivaji Maharaj coronation at Raigad"
+        ]
+    elif "newton" in q or "motion" in q or "physics" in q:
+        return [
+            "Explain Newton's third law with examples",
+            "What is the formula F = m * a?",
+            "What is inertia in physics?",
+            "Difference between mass and weight"
+        ]
+    elif "resume" in q or "interview" in q or "job" in q:
+        return [
+            "Sample 1-page fresher resume layout",
+            "How to answer 'Tell me about yourself'?",
+            "STAR method for job interviews",
+            "Write a sick leave application email"
+        ]
+    elif "photosynthesis" in q or "plant" in q or "biology" in q:
+        return [
+            "What is the chemical equation of photosynthesis?",
+            "Light-dependent vs Calvin cycle reactions",
+            "Why are plant leaves green?",
+            "Role of chlorophyll in photosynthesis"
+        ]
     return [
-        "🌾 पीएम किसान योजना माहिती",
-        "👩 लाडकी बहीण योजना ₹१,५००",
-        "📄 डिजिटल ७/१२ उतारा कसा काढायचा?",
-        "🍚 रेशन कार्ड नवीन अर्ज",
-        "📑 उत्पन्न व रहिवासी दाखला"
+        "⚛️ Explain quantum computing",
+        "🐍 Learn Python programming",
+        "👩 लाडकी बहीण योजना पात्रता",
+        "🌾 पीएम किसान योजना लाभ",
+        "📄 How to write a standout resume?"
     ]
 
 

@@ -983,37 +983,54 @@
 
       <!-- Quick Conversation Scheme Links -->
       <div class="chat-history-list" id="chat-history-list">
-        <a class="history-item" onclick="triggerScheme('पीएम किसान सन्मान निधी योजना माहिती, पात्रता व लाभ सांग')">
-          <span class="history-icon">💬</span>
-          <span>PM Kisan & Namo Shetkari</span>
+        <!-- ChatGPT-style Custom Prompts -->
+        <div style="font-size:0.68rem; font-weight:700; color:#10A37F; text-transform:uppercase; letter-spacing:0.5px; padding:6px 12px 2px;">
+          ✦ Ask Anything (ChatGPT Mode)
+        </div>
+        <a class="history-item" onclick="triggerScheme('What is quantum computing and how do qubits work?')">
+          <span class="history-icon">⚛️</span>
+          <span>What is quantum computing?</span>
         </a>
+        <a class="history-item" onclick="triggerScheme('Explain machine learning vs artificial intelligence')">
+          <span class="history-icon">🤖</span>
+          <span>Machine Learning vs AI</span>
+        </a>
+        <a class="history-item" onclick="triggerScheme('Write a Python function to reverse a string and check palindrome')">
+          <span class="history-icon">🐍</span>
+          <span>Python Programming Examples</span>
+        </a>
+        <a class="history-item" onclick="triggerScheme('How to write a professional 1-page resume for technical jobs?')">
+          <span class="history-icon">📄</span>
+          <span>Resume & Interview Tips</span>
+        </a>
+
+        <!-- Maharashtra Welfare Schemes -->
+        <div style="font-size:0.68rem; font-weight:700; color:#34D399; text-transform:uppercase; letter-spacing:0.5px; padding:10px 12px 2px; margin-top:4px; border-top:1px solid rgba(255,255,255,0.06);">
+          🏛️ Maharashtra Welfare Schemes
+        </div>
         <a class="history-item" onclick="triggerScheme('मुख्यमंत्री माझी लाडकी बहीण योजना अर्ज व पात्रता')">
-          <span class="history-icon">💬</span>
+          <span class="history-icon">👩</span>
           <span>Majhi Ladki Bahin Yojana</span>
         </a>
+        <a class="history-item" onclick="triggerScheme('पीएम किसान सन्मान निधी योजना माहिती, पात्रता व लाभ सांग')">
+          <span class="history-icon">🌾</span>
+          <span>PM Kisan & Namo Shetkari</span>
+        </a>
         <a class="history-item" onclick="triggerScheme('डिजिटल ७/१२ व ८-अ उतारा ऑनलाइन कसा काढायचा?')">
-          <span class="history-icon">💬</span>
+          <span class="history-icon">📑</span>
           <span>Digital 7/12 Satbara Extract</span>
         </a>
+        <a class="history-item" onclick="triggerScheme('महात्मा जोतीराव फुले शेतकरी कर्जमुक्ती योजना माहिती')">
+          <span class="history-icon">💰</span>
+          <span>Farmer Loan Waiver ₹2 Lakh</span>
+        </a>
         <a class="history-item" onclick="triggerScheme('नवीन रेशन कार्ड व अन्न सुरक्षा मोफत धान्य नियम')">
-          <span class="history-icon">💬</span>
+          <span class="history-icon">🍚</span>
           <span>Ration Card & Food Grains</span>
         </a>
         <a class="history-item" onclick="triggerScheme('तहसीलदार उत्पन्न दाखला (१ व ३ वर्ष) काढण्याची पद्धत')">
-          <span class="history-icon">💬</span>
+          <span class="history-icon">📜</span>
           <span>Income & Domicile Certificates</span>
-        </a>
-        <a class="history-item" onclick="triggerScheme('महात्मा जोतीराव फुले शेतकरी कर्जमुक्ती योजना माहिती')">
-          <span class="history-icon">💬</span>
-          <span>Farmer Loan Waiver ₹2 Lakh</span>
-        </a>
-        <a class="history-item" onclick="triggerScheme('संजय गांधी निराधार पेन्शन योजना पात्रता')">
-          <span class="history-icon">💬</span>
-          <span>Sanjay Gandhi Niradhar Pension</span>
-        </a>
-        <a class="history-item" onclick="triggerScheme('महाडीबीटी ट्रॅक्टर व शेती अवजारे अनुदान')">
-          <span class="history-icon">💬</span>
-          <span>Farm Machinery Subsidy</span>
         </a>
       </div>
 
@@ -1076,7 +1093,7 @@
           </h1>
           
           <p class="hero-subtitle">
-            The power of AI at your service — Tame the knowledge of Maharashtra Government Schemes!
+            The power of AI at your service — Ask anything, explore Maharashtra Government Schemes, or chat freely!
           </p>
 
           <!-- Search / Prompt Capsule Input -->
@@ -1084,7 +1101,7 @@
             <input
               type="text"
               id="hero-search-input"
-              placeholder='Example : "Am I eligible for PM Kisan?" or "लाडकी बहीण योजनेची माहिती सांग"'
+              placeholder='Example : "Explain quantum computing" or "लाडकी बहीण योजनेची माहिती सांग"'
               onkeydown="handleHeroKey(event)"
             />
             <div class="capsule-btn-group">
@@ -1102,25 +1119,25 @@
             
             <div class="feature-card">
               <div class="feature-icon-star">✧</div>
-              <div class="feature-card-title">Clear and precise</div>
+              <div class="feature-card-title">Ask Anything</div>
               <div class="feature-card-desc">
-                Zero-hallucination verified state data grounded in official Aaple Sarkar GRs.
+                Science, tech, math, coding, health, career — get clear, accurate answers on any topic.
+              </div>
+            </div>
+
+            <div class="feature-card">
+              <div class="feature-icon-star">🏛️</div>
+              <div class="feature-card-title">Govt Scheme Expert</div>
+              <div class="feature-card-desc">
+                Verified Maharashtra welfare schemes with eligibility, documents & official portal links.
               </div>
             </div>
 
             <div class="feature-card">
               <div class="feature-icon-star">🎯</div>
-              <div class="feature-card-title">Dual-Language Output</div>
+              <div class="feature-card-title">Bilingual Output</div>
               <div class="feature-card-desc">
-                Every response delivered in fluent Marathi with full English translation.
-              </div>
-            </div>
-
-            <div class="feature-card">
-              <div class="feature-icon-star">📈</div>
-              <div class="feature-card-title">Direct Citizen Access</div>
-              <div class="feature-card-desc">
-                Instant official links for 7/12 land records, DBT portals, and 24x7 toll-free helpline.
+                Responds in Marathi, Hindi, or English with automatic translation support.
               </div>
             </div>
 
@@ -1155,7 +1172,7 @@
           </div>
         </div>
         <div class="bottom-disclaimer">
-          Sarkar Mitra provides verified Maharashtra Government scheme information with English translation.
+          Sarkar Mitra AI — Answers Maharashtra Government Schemes & Custom Questions (Science, Coding, Math & General Knowledge).
         </div>
       </footer>
 
@@ -1171,7 +1188,7 @@
       </div>
       <div class="modal-box-body">
         <p style="font-size:0.78rem; color:var(--text-secondary); line-height:1.5;">
-          The bot runs 100% reliably using the local verified state knowledge base. To enable generative multi-turn conversation, you can add your free <strong>Google Gemini API Key</strong>:
+          Sarkar Mitra has a built-in knowledge base for Maharashtra schemes and common academic/tech topics. To unlock <strong>full open-ended conversational AI (like ChatGPT & Claude)</strong> for <em>any</em> custom question, add your free <strong>Google Gemini API Key</strong>:
         </p>
         <label for="gemini-key-val">Gemini API Key (starts with AIzaSy...):</label>
         <input type="password" id="gemini-key-val" placeholder="AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" autocomplete="off" />

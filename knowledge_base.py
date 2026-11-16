@@ -356,35 +356,49 @@ SCHEMES_DATA = [
 ]
 
 
-def search_knowledge_base(query: str) -> list:
-    """Smart search across all schemes with keyword scoring."""
-    query_lower = query.lower().strip()
-    words = [w for w in query_lower.split() if len(w) > 1]
-    results = []
+STOP_WORDS = {
+    'what', 'is', 'the', 'a', 'an', 'of', 'in', 'to', 'for', 'and', 'or', 'how', 'tell', 'me',
+    'about', 'can', 'you', 'give', 'do', 'does', 'this', 'that', 'with', 'from', 'at', 'by',
+    'it', 'its', 'my', 'your', 'we', 'i', 'he', 'she', 'they', 'them', 'who', 'where', 'when', 'why',
+    'please', 'explain', 'write', 'code', 'script', 'list', 'sort', 'function', 'class', 'program',
+    'kay', 'aahe', 'help', 'tips', 'detail', 'details', 'rule', 'rules',
+    'काय', 'आहे', 'ची', 'चा', 'चे', 'च्या', 'व', 'आणि', 'मला', 'सांगा', 'कसे', 'करावे', 'ते', 'हा', 'ही', 'हे', 'बद्दल', 'नियम', 'माहिती'
+}
 
+
+def search_knowledge_base(query: str) -> list:
+    """Accurately matches Maharashtra Government schemes using specific keywords and titles,
+    preventing false positive matches on general questions or stop words."""
+    import re
+    query_lower = query.lower().strip()
+    words = [w.strip('?,.!;:"\'()') for w in query_lower.split()]
+    meaningful_words = [w for w in words if len(w) > 2 and w not in STOP_WORDS]
+    if not meaningful_words:
+        return []
+
+    results = []
     for scheme in SCHEMES_DATA:
         score = 0
-        # Exact keyword matches
+
+        # 1. Exact phrase/word boundary keyword matches
         for kw in scheme["keywords"]:
             kw_l = kw.lower()
-            if kw_l in query_lower:
-                score += 3
-            elif any(w == kw_l for w in words):
-                score += 2
+            pattern = r'\b' + re.escape(kw_l) + r'\b'
+            if re.search(pattern, query_lower):
+                score += 8
+            elif any(w == kw_l for w in meaningful_words):
+                score += 5
 
-        # Title matches
-        if any(w in scheme["title"].lower() for w in words):
-            score += 2
-        if any(w in scheme["title_mr"] for w in words):
-            score += 3
+        # 2. Scheme title exact word matches
+        title_lower = scheme["title"].lower()
+        title_words = [tw.strip('(),') for tw in title_lower.split()]
+        for w in meaningful_words:
+            if w in title_words:
+                score += 5
+            if w in scheme["title_mr"]:
+                score += 6
 
-        # Description matches
-        if any(w in scheme["description"].lower() for w in words):
-            score += 1
-        if any(w in scheme["description_mr"] for w in words):
-            score += 1
-
-        if score > 0:
+        if score >= 6:
             results.append((score, scheme))
 
     results.sort(key=lambda x: x[0], reverse=True)
@@ -407,19 +421,32 @@ def generate_smart_fallback(query: str, language: str = "auto") -> tuple[str, li
     if not schemes:
         if is_marathi:
             reply = (
-                "🙏 **नमस्कार! मी सरकार मित्र (Aaple Sarkar AI सहाय्यक).**\n\n"
-                "तुमच्या विचारलेल्या प्रश्नानुसार थेट योजना शोधता आली नाही. तुम्ही खालीलपैकी कोणत्याही विषयावर माहिती विचारू शकता:\n\n"
+                "🙏 **नमस्कार! मी सरकार मित्र — तुमचा AI सहाय्यक.**\n\n"
+                "मी सरकारी योजनांबद्दल तसेच सामान्य ज्ञान, शिक्षण, विज्ञान, आरोग्य, तंत्रज्ञान आणि इतर विषयांबद्दलही मदत करू शकतो!\n\n"
+                "🔑 **पूर्ण AI क्षमता (ChatGPT सारखे) वापरण्यासाठी:**\n"
+                "⚙️ Settings मध्ये तुमची **Gemini API Key** जोडा — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) वरून मोफत मिळवा.\n\n"
+                "**सध्या उपलब्ध विषय (API Key शिवाय):**\n"
                 "• **शेतकरी योजना**: पीएम किसान (₹६००० + नमो शेतकरी ₹६०००), पीक कर्जमाफी, शेती अवजारे अनुदान\n"
                 "• **महिला योजना**: मुख्यमंत्री माझी लाडकी बहीण योजना (दरमहा ₹१,५००)\n"
                 "• **जमीन महसूल**: डिजिटल स्वाक्षरीत ७/१२ व ८-अ उतारा कसा काढायचा\n"
                 "• **अन्न सुरक्षा**: नवीन रेशन कार्ड, मोफत धान्य नियम, BPL/अंत्योदय यादी\n"
                 "• **प्रमाणपत्रे**: उत्पन्न दाखला, जात प्रमाणपत्र, अधिवास (Domicile) दाखला\n\n"
-                "📞 **अधिक मदतीसाठी २४x७ मोफत हेल्पलाइन:** `1800-120-8040`"
+                "📞 **अधिक मदतीसाठी २४x७ मोफत हेल्पलाइन:** `1800-120-8040`\n\n"
+                "---\n\n"
+                "🌐 **English Translation & Summary:**\n\n"
+                "I'm **Sarkar Mitra** — your AI assistant. I can help with government schemes AND general questions (science, tech, math, health, coding, etc.)!\n\n"
+                "🔑 **To unlock full AI capabilities (like ChatGPT):**\n"
+                "Add your free **Gemini API Key** in ⚙️ Settings — get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).\n\n"
+                "Without an API key, I can still provide detailed answers about all Maharashtra government schemes listed above.\n\n"
+                "📞 **24x7 Toll-Free Helpline:** `1800-120-8040`"
             )
         else:
             reply = (
-                "🙏 **Welcome to Sarkar Mitra (Aaple Sarkar AI Assistant).**\n\n"
-                "I couldn't match a specific scheme for your exact words, but I can guide you through all major Maharashtra services:\n\n"
+                "🙏 **Welcome to Sarkar Mitra — your AI assistant!**\n\n"
+                "I can help with **government schemes** AND **general questions** (science, technology, math, health, coding, career advice, and more)!\n\n"
+                "🔑 **To unlock full AI capabilities (like ChatGPT):**\n"
+                "Add your free **Gemini API Key** in ⚙️ Settings — get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).\n\n"
+                "**Currently available topics (without API key):**\n"
                 "• **Farmer Schemes**: PM Kisan (₹6,000 + Namo Shetkari ₹6,000), Crop Loan Waiver, Farm Machinery Subsidies\n"
                 "• **Women Welfare**: Mukhyamantri Majhi Ladki Bahin Yojana (₹1,500/month)\n"
                 "• **Land Records**: Digitally signed 7/12 & 8-A Satbara extracts\n"
