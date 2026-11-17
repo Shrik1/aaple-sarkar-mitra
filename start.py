@@ -59,7 +59,7 @@ def main():
         except Exception as e:
             pass
             
-    if api_key and api_key != "your_gemini_api_key_here" and not api_key.startswith("AQ."):
+    if api_key and api_key != "your_gemini_api_key_here" and len(api_key.strip()) >= 20:
         print(f"✅ Gemini AI API key active: {api_key[:6]}...{api_key[-4:]}")
     else:
         print("💡 Status: Local Verified Knowledge Base Mode active.")

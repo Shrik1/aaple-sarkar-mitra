@@ -55,8 +55,8 @@ def is_valid_gemini_key(key: Optional[str]) -> bool:
     key = key.strip()
     if key in ("your_gemini_api_key_here", "placeholder", "test", ""):
         return False
-    # Valid keys usually start with AIzaSy and are at least 30 chars
-    return len(key) >= 20 and not key.startswith("AQ.")
+    # Accepts legacy AIzaSy... keys as well as modern Google AI Studio AQ.Ab... authentication keys
+    return len(key) >= 20 and (key.startswith("AIza") or key.startswith("AQ.") or len(key) >= 25)
 
 def get_client() -> Optional[genai.Client]:
     global _client
@@ -172,7 +172,7 @@ async def set_api_key(req: ApiKeyUpdate):
     global _client
     key = req.api_key.strip()
     if not is_valid_gemini_key(key):
-        raise HTTPException(status_code=400, detail="Invalid API key format. Key should start with 'AIzaSy'.")
+        raise HTTPException(status_code=400, detail="Invalid API key format. Expected a Google Gemini API key (AIzaSy... or AQ.Ab...).")
     
     os.environ["GEMINI_API_KEY"] = key
     _client = None  # Reset client
